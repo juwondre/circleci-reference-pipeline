@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Stand the built image up next to a real postgres and exercise the HTTP API.
-# This is what proves the artifact actually works end-to-end before we publish.
+# This is what proves the artifact actually works end-to-end before we publish
+# to ECR or S3.
 image="${1:?usage: integration-test.sh <image>}"
 net="cci-it-$$"
 db="cci-it-db-$$"
