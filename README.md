@@ -25,7 +25,7 @@ On every push:
 5. **Integration test** the saved image: load it, stand it up next to a fresh
    Postgres, and exercise the HTTP API.
 
-Only on merge to `main`:
+Only on merge to `master`:
 
 1. **Publish to ECR** — image tagged with the commit SHA and `latest`.
 1. **Publish to S3** — the image tar plus a JSON manifest under `releases/<sha>/`.
@@ -52,7 +52,7 @@ project.
 ┌────────────────────┐
 │ container-int-test │  load tar, run image + postgres, hit API
 └─────────┬──────────┘
-          │   filters.branches.only = main
+          │   filters.branches.only = master
           ▼
    ┌──────┴──────┐
    ▼             ▼
@@ -88,7 +88,7 @@ A few things this pipeline leans on that you don't get for free elsewhere:
   short-lived token for AWS STS credentials. No `AWS_ACCESS_KEY_ID` is stored
   anywhere.
 - **Context restrictions.** The `aws-prod-publish` context is restricted to
-  the `main` branch in CircleCI. Even if someone added a `publish-ecr` call
+  the `master` branch in CircleCI. Even if someone added a `publish-ecr` call
   to a feature branch's config, the context would refuse to inject — the job
   would fail before it could touch AWS.
 - **Two-layer credential isolation.** Belt and suspenders: the IAM trust
@@ -119,7 +119,7 @@ docker build -t app:dev .
 - **Build with BuildKit + push from the build job.** Today we save → load →
   push, which costs an extra workspace round-trip. Pushing straight to ECR
   from `build-image` would be faster but couples the build job to AWS
-  credentials, which we deliberately scoped to `main`-only jobs. The current
+  credentials, which we deliberately scoped to `master`-only jobs. The current
   shape keeps that boundary clean.
 - **Manual approval before publish.** Drop in a `type: approval` job between
   `container-integration-test` and the publish jobs if you want a human
