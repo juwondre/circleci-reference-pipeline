@@ -3,14 +3,12 @@ import os
 from flask import Flask, jsonify, request
 from sqlalchemy import select, text
 
-from app.db import Base, SessionLocal, engine
+from app.db import SessionLocal, engine
 from app.models import Item
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
-
-    Base.metadata.create_all(bind=engine)
 
     @app.get("/healthz")
     def healthz():
