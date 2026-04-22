@@ -134,7 +134,7 @@ docker build -t app:dev .
   parallelizes.
 - **Parallel test splits.** `circleci tests split` would matter once pytest
   takes more than ~30s. Not worth it at this size.
-- **Pin orb versions tighter than `@1.1.0` / `@5.1.1`.** If you want fully
+- **Pin orb versions tighter than `@3.0.0` / `@5.1.1`.** If you want fully
   reproducible runs, pin to exact patch versions in your fork.
 
 See [`SETUP.md`](SETUP.md) for the one-time CircleCI + AWS OIDC bootstrap.
