@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Block until DATABASE_URL is reachable. Used by both the app entrypoint and
-# the test job before pytest runs.
+# the test job before pytest runs. WAIT_ATTEMPTS overrides the 30s default.
 url="${DATABASE_URL:-postgresql+psycopg://app:app@localhost:5432/appdb}"
 host_port="$(printf '%s' "$url" | sed -E 's#.*@([^/]+)/.*#\1#')"
 host="${host_port%%:*}"
