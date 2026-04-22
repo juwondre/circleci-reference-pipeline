@@ -1,0 +1,200 @@
+version: 2.1
+
+# Continuation config triggered by .circleci/config.yml after path-filtering.
+# The `run-app-pipeline` parameter is true only when relevant files changed,
+# so doc-only PRs short-circuit to a single no-op job.
+
+orbs:
+  aws-cli: circleci/aws-cli@5.1.1
+
+parameters:
+  run-app-pipeline:
+    type: boolean
+    default: false
+
+executors:
+  python:
+    docker:
+      - image: cimg/python:3.12
+  python-with-postgres:
+    docker:
+      - image: cimg/python:3.12
+        environment:
+          DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/appdb
+      - image: cimg/postgres:16.2
+        environment:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: appdb
+  machine:
+    machine:
+      image: ubuntu-2404:current
+      docker_layer_caching: true
+
+commands:
+  pip-install-dev:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-pydeps-{{ checksum "requirements-dev.txt" }}
+      - run:
+          name: Install dev deps
+          command: |
+            python -m venv .venv
+            . .venv/bin/activate
+            pip install -r requirements-dev.txt
+      - save_cache:
+          key: v1-pydeps-{{ checksum "requirements-dev.txt" }}
+          paths:
+            - .venv
+
+jobs:
+  noop:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - run: echo "no app/test/infra files changed; skipping pipeline"
+
+  lint:
+    executor: python
+    steps:
+      - checkout
+      - pip-install-dev
+      - run:
+          name: ruff
+          command: |
+            . .venv/bin/activate
+            ruff check app tests
+
+  test:
+    executor: python-with-postgres
+    steps:
+      - checkout
+      - pip-install-dev
+      - run: ./scripts/wait-for-postgres.sh
+      - run:
+          name: pytest with JUnit + coverage
+          command: |
+            . .venv/bin/activate
+            mkdir -p test-results
+            pytest \
+              --junitxml=test-results/pytest.xml \
+              --cov=app --cov-report=xml:test-results/coverage.xml
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: test-results
+
+  build-image:
+    executor: machine
+    steps:
+      - checkout
+      - run:
+          name: Build args
+          command: ./scripts/generate-build-info.sh build.env
+      - run:
+          name: Build app image
+          command: |
+            set -a; . ./build.env; set +a
+            docker build \
+              --build-arg BUILD_SHA="$BUILD_SHA" \
+              --build-arg BUILD_TIME="$BUILD_TIME" \
+              -t "app:${CIRCLE_SHA1}" \
+              -t app:latest \
+              .
+      - run:
+          name: Smoke test image
+          command: ./scripts/smoke-test.sh "app:${CIRCLE_SHA1}"
+      - run:
+          name: Save image tar for downstream jobs
+          command: |
+            mkdir -p /tmp/image
+            docker save "app:${CIRCLE_SHA1}" | gzip > "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
+            cp build.env /tmp/image/
+      - persist_to_workspace:
+          root: /tmp/image
+          paths:
+            - "*.tar.gz"
+            - build.env
+
+  container-integration-test:
+    executor: machine
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/image
+      - run:
+          name: Load image
+          command: docker load < "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
+      - run:
+          name: Run end-to-end against real postgres
+          command: ./scripts/integration-test.sh "app:${CIRCLE_SHA1}"
+
+  publish-ecr:
+    executor: machine
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/image
+      - run: docker load < "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
+      - aws-cli/install
+      - run:
+          name: Exchange OIDC token for AWS creds
+          command: ./scripts/aws-oidc-login.sh
+      - run:
+          name: Push to ECR
+          command: ./scripts/publish-ecr.sh "app:${CIRCLE_SHA1}"
+
+  publish-s3:
+    executor: python
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/image
+      - aws-cli/install
+      - run:
+          name: Exchange OIDC token for AWS creds
+          command: ./scripts/aws-oidc-login.sh
+      - run:
+          name: Upload release tarball + manifest
+          command: ./scripts/publish-s3.sh "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
+
+workflows:
+  skip:
+    when:
+      not: << pipeline.parameters.run-app-pipeline >>
+    jobs:
+      - noop
+
+  build-test-publish:
+    when: << pipeline.parameters.run-app-pipeline >>
+    jobs:
+      - lint
+      - test:
+          requires: [lint]
+
+      - build-image:
+          requires: [test]
+
+      - container-integration-test:
+          requires: [build-image]
+
+      # Publish jobs only fire on main, and only after the integration test
+      # passes. They consume a context whose AWS_ROLE_ARN is restricted by
+      # CircleCI to main, and whose IAM trust policy is pinned to this project
+      # + ref via the OIDC sub claim. So credentials are unreachable from
+      # forks, feature branches, or any non-approved build.
+      - publish-ecr:
+          context: aws-prod-publish
+          requires: [container-integration-test]
+          filters:
+            branches:
+              only: master
+
+      - publish-s3:
+          context: aws-prod-publish
+          requires: [container-integration-test]
+          filters:
+            branches:
+              only: master

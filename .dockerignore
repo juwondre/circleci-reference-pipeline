@@ -1,0 +1,12 @@
+.git
+.github
+.circleci
+tests
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+test-results
+artifacts
+README.md
+SETUP.md
