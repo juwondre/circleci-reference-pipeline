@@ -1,0 +1,26 @@
+version: 2.1
+
+# Two-stage setup: this top-level config runs path-filtering, which figures out
+# *what* changed and then triggers continue-config.yml with the right boolean
+# parameters. The continuation config holds the real workflow.
+
+setup: true
+
+orbs:
+  path-filtering: circleci/path-filtering@1.1.0
+
+workflows:
+  detect-changes:
+    jobs:
+      - path-filtering/filter:
+          base-revision: main
+          config-path: .circleci/continue-config.yml
+          mapping: |
+            app/.*           run-app-pipeline   true
+            tests/.*         run-app-pipeline   true
+            scripts/.*       run-app-pipeline   true
+            requirements.*   run-app-pipeline   true
+            Dockerfile       run-app-pipeline   true
+            pytest.ini       run-app-pipeline   true
+            pyproject.toml   run-app-pipeline   true
+            .circleci/.*     run-app-pipeline   true
