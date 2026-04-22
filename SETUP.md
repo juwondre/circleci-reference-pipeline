@@ -8,7 +8,7 @@ publish jobs can assume a role via OIDC. Plan for ~15 minutes.
 1. Sign in at <https://app.circleci.com> and pick the org that owns the GitHub
    account hosting this repo.
 1. **Projects → Set up project →** select `circleci-reference-pipeline` →
-   **Fastest** → choose the `main` branch. CircleCI picks up
+   **Fastest** → choose the `master` branch. CircleCI picks up
    `.circleci/config.yml` automatically.
 1. Push any commit; the first build will run the `noop` job (no app files
    changed) or the full pipeline (if app files did). Either is "green".
@@ -56,14 +56,14 @@ Save this trust policy as `trust.json` (substitute your `<ORG_UUID>`,
         "oidc.circleci.com/org/<ORG_UUID>:aud": "<ORG_UUID>"
       },
       "StringLike": {
-        "oidc.circleci.com/org/<ORG_UUID>:sub": "org/<ORG_UUID>/project/<PROJECT_UUID>/user/*/vcs-origin/*/vcs-ref/refs/heads/main"
+        "oidc.circleci.com/org/<ORG_UUID>:sub": "org/<ORG_UUID>/project/<PROJECT_UUID>/user/*/vcs-origin/*/vcs-ref/refs/heads/master"
       }
     }
   }]
 }
 ```
 
-The `vcs-ref/refs/heads/main` suffix on the `sub` claim is the second of
+The `vcs-ref/refs/heads/master` suffix on the `sub` claim is the second of
 two locks: even if someone managed to use this role's ARN from a feature
 branch's pipeline, AWS would refuse the AssumeRole.
 
@@ -138,10 +138,10 @@ Add these env vars to it:
 | `ECR_REPO` | `circleci-reference-pipeline` |
 | `RELEASE_BUCKET` | your bucket name |
 
-Then **restrict the context** to the `main` branch:
-**Context → Security → Add Restriction → branch `main`**. This is the third
+Then **restrict the context** to the `master` branch:
+**Context → Security → Add Restriction → branch `master`**. This is the third
 lock — CircleCI will refuse to inject the context's vars into any job not
-running on `main`.
+running on `master`.
 
 ## 6. Push and watch
 
@@ -153,12 +153,12 @@ git push -u origin ci-bootstrap
 
 Open the PR. The pipeline should run lint → test → build-image →
 container-integration-test, and skip the publish jobs because the branch
-isn't `main`. Merge to `main` and the publish jobs fire.
+isn't `master`. Merge to `master` and the publish jobs fire.
 
 ## Troubleshooting
 
 - **`path-filtering` errors with "could not find base revision".** First-ever
-  build on a brand-new branch with no merge base. Push one commit to `main`
+  build on a brand-new branch with no merge base. Push one commit to `master`
   first, or change `base-revision` to `HEAD~1` temporarily.
 - **`assume-role-with-web-identity` returns `AccessDenied`.** Almost always
   the `sub` claim string. Print `$CIRCLE_OIDC_TOKEN_V2` decoded

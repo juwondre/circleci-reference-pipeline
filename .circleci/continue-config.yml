@@ -190,11 +190,11 @@ workflows:
           requires: [container-integration-test]
           filters:
             branches:
-              only: main
+              only: master
 
       - publish-s3:
           context: aws-prod-publish
           requires: [container-integration-test]
           filters:
             branches:
-              only: main
+              only: master
