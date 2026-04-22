@@ -146,8 +146,23 @@ jobs:
           name: Exchange OIDC token for AWS creds
           command: ./scripts/aws-oidc-login.sh
       - run:
+          name: Mark deploy as PENDING
+          command: |
+            circleci run release plan ecr-publish \
+              --component-name=app-image \
+              --environment-name=production \
+              --target-version="${CIRCLE_SHA1}"
+      - run:
           name: Push to ECR
           command: ./scripts/publish-ecr.sh "app:${CIRCLE_SHA1}"
+      - run:
+          name: Mark deploy SUCCESS
+          when: on_success
+          command: circleci run release update ecr-publish --status=SUCCESS
+      - run:
+          name: Mark deploy FAILED
+          when: on_fail
+          command: circleci run release update ecr-publish --status=FAILED
 
   publish-s3:
     executor: python
@@ -160,8 +175,23 @@ jobs:
           name: Exchange OIDC token for AWS creds
           command: ./scripts/aws-oidc-login.sh
       - run:
+          name: Mark deploy as PENDING
+          command: |
+            circleci run release plan s3-publish \
+              --component-name=release-tarball \
+              --environment-name=production \
+              --target-version="${CIRCLE_SHA1}"
+      - run:
           name: Upload release tarball + manifest
           command: ./scripts/publish-s3.sh "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
+      - run:
+          name: Mark deploy SUCCESS
+          when: on_success
+          command: circleci run release update s3-publish --status=SUCCESS
+      - run:
+          name: Mark deploy FAILED
+          when: on_fail
+          command: circleci run release update s3-publish --status=FAILED
 
 workflows:
   skip:
