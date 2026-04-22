@@ -76,12 +76,15 @@ jobs:
           name: pytest with JUnit + coverage
           command: |
             . .venv/bin/activate
-            mkdir -p test-results
+            mkdir -p test-results coverage
             pytest \
               --junitxml=test-results/pytest.xml \
-              --cov=app --cov-report=xml:test-results/coverage.xml
+              --cov=app --cov-report=xml:coverage/coverage.xml
       - store_test_results:
           path: test-results
+      - store_artifacts:
+          path: coverage
+          destination: coverage
       - store_artifacts:
           path: test-results
           destination: test-results
