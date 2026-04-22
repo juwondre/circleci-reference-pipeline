@@ -99,6 +99,12 @@ A few things this pipeline leans on that you don't get for free elsewhere:
   publish role, trust + permissions policies, ECR repo, S3 bucket — lives
   under [`terraform/`](terraform/). `terraform plan` against the live
   account shows zero diffs, so the codified version is the source of truth.
+- **Deploy markers.** Both `publish-ecr` and `publish-s3` call
+  `circleci run release plan` before they touch AWS and
+  `circleci run release update --status=SUCCESS|FAILED` after, so each
+  publish shows up in the **Deploys** dashboard tagged with the SHA.
+  An SRE looking for "what version is in prod right now?" gets a single
+  pane, no log spelunking required.
 
 ## Running locally
 
