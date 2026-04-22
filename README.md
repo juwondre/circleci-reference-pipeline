@@ -69,6 +69,7 @@ publish-ecr   publish-s3   ← OIDC → AWS STS, restricted context
 | Shell glue | [`scripts/`](scripts/) — wait-for-db, smoke, integration, AWS OIDC, publish |
 | Pipeline (setup) | [`.circleci/config.yml`](.circleci/config.yml) — path-filtering only |
 | Pipeline (real) | [`.circleci/continue-config.yml`](.circleci/continue-config.yml) — jobs + workflows |
+| AWS infra (IaC) | [`terraform/`](terraform/) — OIDC provider, publish role, ECR, S3 as code |
 | Bootstrap | [`SETUP.md`](SETUP.md) — CircleCI project + AWS OIDC trust policy |
 
 ## Why CircleCI
@@ -94,6 +95,10 @@ A few things this pipeline leans on that you don't get for free elsewhere:
 - **Two-layer credential isolation.** Belt and suspenders: the IAM trust
   policy _also_ pins on the OIDC `sub` claim, which encodes project + ref.
   A leaked role ARN can't be assumed from another repo or another branch.
+- **Infrastructure as code.** Everything on the AWS side — OIDC provider,
+  publish role, trust + permissions policies, ECR repo, S3 bucket — lives
+  under [`terraform/`](terraform/). `terraform plan` against the live
+  account shows zero diffs, so the codified version is the source of truth.
 
 ## Running locally
 
