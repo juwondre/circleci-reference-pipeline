@@ -3,6 +3,12 @@
 One-time bootstrap: connect this repo to CircleCI, then wire AWS so the
 publish jobs can assume a role via OIDC. Plan for ~15 minutes.
 
+> **Tip:** the AWS-side bootstrap (sections 3–4) is also codified in
+> [`terraform/`](terraform/). Run `terraform apply` there instead of the raw
+> `aws iam` commands below — same end state, version-controlled, and
+> `terraform plan` continues to detect drift after the fact. The CLI commands
+> are kept here as a reference for what each Terraform resource maps to.
+
 ## 1. CircleCI project
 
 1. Sign in at <https://app.circleci.com> and pick the org that owns the GitHub
