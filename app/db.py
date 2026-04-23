@@ -5,6 +5,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 
 def database_url() -> str:
+    # Default targets the test/dev Postgres (CI sidecar or local docker
+    # container). Production overrides DATABASE_URL from a secrets manager;
+    # the hardcoded app:app here is a placeholder, not a real credential.
     return os.environ.get(
         "DATABASE_URL",
         "postgresql+psycopg://app:app@localhost:5432/appdb",

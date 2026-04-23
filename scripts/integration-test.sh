@@ -17,6 +17,7 @@ trap cleanup EXIT
 
 docker network create "$net" >/dev/null
 
+# Test-only credentials on a throwaway container (cleaned up on trap).
 docker run -d --name "$db" --network "$net" \
   -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=appdb \
   postgres:16-alpine >/dev/null
