@@ -5,7 +5,7 @@ version: 2.1
 # so doc-only PRs short-circuit to a single no-op job.
 
 orbs:
-  aws-cli: circleci/aws-cli@5.1.1
+  aws-cli: circleci/aws-cli@5.4.1
 
 parameters:
   run-app-pipeline:
