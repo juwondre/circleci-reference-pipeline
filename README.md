@@ -212,6 +212,13 @@ docker build -t app:dev .
   before bytes leave CI.
 - **Image signing (cosign + Sigstore).** Easy to layer on after `publish-ecr`;
   consumers can then verify images by SHA before deploy.
+- **Deploy + Rollback pipelines.** Deploy markers already feed the Deploys
+  dashboard, so the next natural step is wiring the **Deploy Pipeline** and
+  **Rollback Pipeline** toggles under _Project Settings → Deploy Settings_ for
+  one-click promote and one-click revert. Both need a downstream consumer
+  (ECS service, EKS deployment, Lambda function, etc.) so there's something
+  to actually promote or revert; this pipeline publishes artifacts but doesn't
+  deploy them anywhere yet.
 - **dgoss for container tests.** [`scripts/smoke-test.sh`](scripts/smoke-test.sh)
   hand-rolls the assertions to keep dependencies minimal. dgoss would give
   you declarative YAML and is a one-line swap.
