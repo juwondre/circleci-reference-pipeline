@@ -16,6 +16,10 @@ executors:
   python:
     docker:
       - image: cimg/python:3.12
+  # Test-only credentials below: the Postgres sidecar is ephemeral, bound
+  # to the job's localhost namespace, and destroyed when the job ends. Do
+  # not reuse this pattern for production — production DB creds belong in a
+  # secrets manager, injected via a branch-restricted context.
   python-with-postgres:
     docker:
       - image: cimg/python:3.12
