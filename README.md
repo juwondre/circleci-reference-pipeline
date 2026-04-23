@@ -159,6 +159,12 @@ The CircleCI context values (§5 of [`SETUP.md`](SETUP.md)) then come straight
 from the outputs table in [`terraform/README.md`](terraform/README.md), so no
 separate substitution is needed.
 
+One thing `tfvars` _can't_ override: the `backend "s3"` block in
+[`terraform/versions.tf`](terraform/versions.tf). Terraform backend config
+doesn't support variables, so after you've run the first bootstrap apply,
+edit the hardcoded `bucket` and `dynamodb_table` values in that block to
+match your `state_bucket_name` and `state_lock_table_name`.
+
 If you use the CLI path in [`SETUP.md`](SETUP.md) instead, substitute your
 names in `--role-name`, `--repository-name`, and the ARNs in `permissions.json`.
 
