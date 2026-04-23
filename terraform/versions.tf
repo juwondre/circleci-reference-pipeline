@@ -12,16 +12,13 @@ terraform {
     }
   }
 
-  # Uncomment after running the bootstrap apply that creates the bucket and
-  # lock table in backend.tf, then run `terraform init -migrate-state`.
-  #
-  # backend "s3" {
-  #   bucket         = "REPLACE_WITH_state_bucket_name"
-  #   key            = "circleci-reference-pipeline/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "circleci-reference-pipeline-tfstate-lock"
-  #   encrypt        = true
-  # }
+  backend "s3" {
+    bucket         = "juwondre-cci-reference-tfstate"
+    key            = "circleci-reference-pipeline/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "circleci-reference-pipeline-tfstate-lock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
