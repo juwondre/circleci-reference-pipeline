@@ -13,7 +13,7 @@ This is a pattern to **fork and adapt**, not a product to install. See
 specific things to change when you reuse it.
 
 - Canonical VCS (this reference): <https://github.com/juwondre/circleci-reference-pipeline>
-- Canonical passing build (this reference): <https://app.circleci.com/pipelines/circleci/HwwMVoew2JQ1sDzMvWGy8s/BLoTBkA3F8xnVJ6PLkdk9W/21/details>
+- Canonical passing build (this reference): <https://app.circleci.com/pipelines/circleci/HwwMVoew2JQ1sDzMvWGy8s/BLoTBkA3F8xnVJ6PLkdk9W/27/details>
 
 ## How this maps to the brief
 
