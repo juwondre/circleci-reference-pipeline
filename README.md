@@ -8,7 +8,7 @@ The app under test is a Flask + SQLAlchemy items API talking to Postgres. It
 is intentionally tiny so the pipeline is what you read, not the app.
 
 - VCS: <https://github.com/juwondre/circleci-reference-pipeline>
-- Latest passing build: <https://app.circleci.com/pipelines/circleci/HwwMVoew2JQ1sDzMvWGy8s/BLoTBkA3F8xnVJ6PLkdk9W/17/details>
+- Latest passing build: <https://app.circleci.com/pipelines/circleci/HwwMVoew2JQ1sDzMvWGy8s/BLoTBkA3F8xnVJ6PLkdk9W/21/details>
 
 ## What it does
 
