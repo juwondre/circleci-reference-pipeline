@@ -32,27 +32,6 @@ executors:
       docker_layer_caching: true
 
 commands:
-  full-checkout:
-    description: >
-      Full clone in place of CircleCI's default blobless `checkout` step.
-      The blobless strategy lazy-fetches blobs from GitHub's promisor endpoint,
-      which has been returning HTTP 500 intermittently for this repo and
-      taking downstream jobs down with it. A full clone sidesteps that.
-    steps:
-      - run:
-          name: Clone repository (full, not blobless)
-          command: |
-            set -euo pipefail
-            mkdir -p "$HOME/.ssh"
-            ssh-keyscan github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
-            if [ -n "${CHECKOUT_KEY:-}" ]; then
-              echo "$CHECKOUT_KEY" > "$HOME/.ssh/id_rsa"
-              chmod 600 "$HOME/.ssh/id_rsa"
-            fi
-            find . -mindepth 1 -delete 2>/dev/null || true
-            git clone "$CIRCLE_REPOSITORY_URL" .
-            git checkout -q "$CIRCLE_SHA1"
-
   pip-install-dev:
     steps:
       - restore_cache:
@@ -79,7 +58,7 @@ jobs:
   lint:
     executor: python
     steps:
-      - full-checkout
+      - checkout
       - pip-install-dev
       - run:
           name: ruff
@@ -90,7 +69,7 @@ jobs:
   test:
     executor: python-with-postgres
     steps:
-      - full-checkout
+      - checkout
       - pip-install-dev
       - run: ./scripts/wait-for-postgres.sh
       - run:
@@ -113,7 +92,7 @@ jobs:
   build-image:
     executor: machine
     steps:
-      - full-checkout
+      - checkout
       - run:
           name: Build args
           command: ./scripts/generate-build-info.sh build.env
@@ -144,7 +123,7 @@ jobs:
   container-integration-test:
     executor: machine
     steps:
-      - full-checkout
+      - checkout
       - attach_workspace:
           at: /tmp/image
       - run:
@@ -157,7 +136,7 @@ jobs:
   publish-ecr:
     executor: machine
     steps:
-      - full-checkout
+      - checkout
       - attach_workspace:
           at: /tmp/image
       - run: docker load < "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
@@ -187,7 +166,7 @@ jobs:
   publish-s3:
     executor: python
     steps:
-      - full-checkout
+      - checkout
       - attach_workspace:
           at: /tmp/image
       - aws-cli/install
