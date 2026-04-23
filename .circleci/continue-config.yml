@@ -104,7 +104,6 @@ jobs:
               --build-arg BUILD_SHA="$BUILD_SHA" \
               --build-arg BUILD_TIME="$BUILD_TIME" \
               -t "app:${CIRCLE_SHA1}" \
-              -t app:latest \
               .
       - run:
           name: Smoke test image
