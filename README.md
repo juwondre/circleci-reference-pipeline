@@ -187,7 +187,8 @@ your fork and your own passing build.
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
 
-# Tests need Postgres on :5432
+# Tests need Postgres on :5432. Credentials are test-only for this
+# throwaway container — don't reuse them in production configs.
 docker run -d --rm --name pg -p 5432:5432 \
   -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=appdb \
   postgres:16-alpine
