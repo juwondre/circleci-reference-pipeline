@@ -137,6 +137,54 @@ jobs:
           name: Run end-to-end against real postgres
           command: ./scripts/integration-test.sh "app:${CIRCLE_SHA1}"
 
+  security-scan:
+    # Runs in parallel with container-integration-test so the security gate
+    # doesn't extend pipeline wall time. Both must pass before any publish.
+    executor: machine
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/image
+      - run:
+          name: Load built image
+          command: docker load < "/tmp/image/app-${CIRCLE_SHA1}.tar.gz"
+      - run:
+          name: Install scanners
+          command: |
+            set -euo pipefail
+            python3 -m pip install --quiet --user bandit==1.7.9
+            curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v0.55.0/trivy_0.55.0_Linux-64bit.tar.gz" \
+              | sudo tar -xz -C /usr/local/bin trivy
+      - run:
+          name: Bandit (Python source SAST)
+          command: |
+            set -eo pipefail
+            mkdir -p security-results
+            # -ll = only flag MEDIUM+; raise to -lll for HIGH-only
+            "$HOME/.local/bin/bandit" -r app -ll | tee security-results/bandit.txt
+            # Guard against bandit silently skipping all files (e.g. parser
+            # incompat on a future Python). If LOC scanned is 0, fail loud.
+            total_loc=$(awk '/Total lines of code:/ {print $NF; exit}' security-results/bandit.txt)
+            if [ "${total_loc:-0}" = "0" ]; then
+              echo "ERROR: bandit scanned 0 lines of code in app/ — likely a parser failure" >&2
+              exit 1
+            fi
+      - run:
+          name: Trivy (container image CVE scan)
+          command: |
+            mkdir -p security-results
+            # Fail the build on any HIGH or CRITICAL CVE in the image
+            trivy image --no-progress \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --format table \
+              --output security-results/trivy.txt \
+              "app:${CIRCLE_SHA1}"
+      - store_artifacts:
+          path: security-results
+          destination: security-results
+          when: always
+
   publish-ecr:
     executor: machine
     steps:
@@ -216,21 +264,26 @@ workflows:
       - container-integration-test:
           requires: [build-image]
 
+      # SAST + container CVE scan runs in parallel with the integration test
+      # to keep wall time flat. Both must pass before any publish.
+      - security-scan:
+          requires: [build-image]
+
       # Publish jobs only fire on main, and only after the integration test
-      # passes. They consume a context whose AWS_ROLE_ARN is restricted by
-      # CircleCI to main, and whose IAM trust policy is pinned to this project
-      # + ref via the OIDC sub claim. So credentials are unreachable from
-      # forks, feature branches, or any non-approved build.
+      # AND the security scan pass. They consume a context whose AWS_ROLE_ARN
+      # is restricted by CircleCI to main, and whose IAM trust policy is
+      # pinned to this project + ref via the OIDC sub claim. So credentials
+      # are unreachable from forks, feature branches, or any non-approved build.
       - publish-ecr:
           context: aws-prod-publish
-          requires: [container-integration-test]
+          requires: [container-integration-test, security-scan]
           filters:
             branches:
               only: master
 
       - publish-s3:
           context: aws-prod-publish
-          requires: [container-integration-test]
+          requires: [container-integration-test, security-scan]
           filters:
             branches:
               only: master
