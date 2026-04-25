@@ -153,8 +153,9 @@ jobs:
           command: |
             set -euo pipefail
             python3 -m pip install --quiet --user bandit==1.7.9
-            curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v0.55.0/trivy_0.55.0_Linux-64bit.tar.gz" \
-              | sudo tar -xz -C /usr/local/bin trivy
+            # Official install script — survives Trivy's asset-naming changes
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+              | sudo sh -s -- -b /usr/local/bin v0.70.0
       - run:
           name: Bandit (Python source SAST)
           command: |
