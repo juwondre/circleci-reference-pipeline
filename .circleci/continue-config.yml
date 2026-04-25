@@ -174,12 +174,24 @@ jobs:
           name: Trivy (container image CVE scan)
           command: |
             mkdir -p security-results
-            # Fail the build on any HIGH or CRITICAL CVE in the image
+            # Fail the build on any FIXABLE HIGH or CRITICAL CVE in the image.
+            # --ignore-unfixed skips CVEs with no upstream fix yet — gating on
+            # those would block every build for things we can't action. Fixed
+            # CVEs still fail loudly, and the full unfiltered list (including
+            # unfixed) is also captured below for visibility.
             trivy image --no-progress \
               --severity HIGH,CRITICAL \
+              --ignore-unfixed \
               --exit-code 1 \
               --format table \
-              --output security-results/trivy.txt \
+              --output security-results/trivy-fixable.txt \
+              "app:${CIRCLE_SHA1}"
+            # Capture the unfiltered list as a separate artifact for review
+            trivy image --no-progress \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
+              --format table \
+              --output security-results/trivy-all.txt \
               "app:${CIRCLE_SHA1}"
       - store_artifacts:
           path: security-results
