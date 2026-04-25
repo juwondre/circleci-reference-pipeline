@@ -257,6 +257,40 @@ jobs:
           when: on_fail
           command: circleci run release update s3-publish --status=FAILED
 
+  deploy-apprunner:
+    # Rolls the published image SHA onto an App Runner service (dev or prod)
+    # via aws apprunner update-service, then polls the operation until it
+    # reaches a terminal state. Caller supplies <env-name> as a parameter.
+    parameters:
+      env:
+        type: enum
+        enum: ["dev", "prod"]
+    executor: python
+    steps:
+      - checkout
+      - aws-cli/install
+      - run:
+          name: Exchange OIDC token for AWS creds
+          command: ./scripts/aws-oidc-login.sh
+      - run:
+          name: Mark deploy as PENDING
+          command: |
+            circleci run release plan apprunner-<< parameters.env >> \
+              --component-name=apprunner-service \
+              --environment-name=<< parameters.env >> \
+              --target-version="${CIRCLE_SHA1}"
+      - run:
+          name: Update App Runner service (<< parameters.env >>)
+          command: ./scripts/deploy-apprunner.sh << parameters.env >>
+      - run:
+          name: Mark deploy SUCCESS
+          when: on_success
+          command: circleci run release update apprunner-<< parameters.env >> --status=SUCCESS
+      - run:
+          name: Mark deploy FAILED
+          when: on_fail
+          command: circleci run release update apprunner-<< parameters.env >> --status=FAILED
+
 workflows:
   skip:
     when:
@@ -297,6 +331,33 @@ workflows:
       - publish-s3:
           context: aws-prod-publish
           requires: [container-integration-test, security-scan]
+          filters:
+            branches:
+              only: master
+
+      # Deploy the just-published image to App Runner. Dev runs automatically
+      # right after publish-ecr; prod waits on a manual approval gate.
+      - deploy-apprunner:
+          name: deploy-dev
+          env: dev
+          context: aws-prod-publish
+          requires: [publish-ecr]
+          filters:
+            branches:
+              only: master
+
+      - approve-prod-deploy:
+          type: approval
+          requires: [deploy-dev]
+          filters:
+            branches:
+              only: master
+
+      - deploy-apprunner:
+          name: deploy-prod
+          env: prod
+          context: aws-prod-publish
+          requires: [approve-prod-deploy]
           filters:
             branches:
               only: master
