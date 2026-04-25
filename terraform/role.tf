@@ -61,6 +61,34 @@ data "aws_iam_policy_document" "publish_permissions" {
     actions   = ["s3:PutObject", "s3:PutObjectAcl"]
     resources = ["${aws_s3_bucket.releases.arn}/releases/*"]
   }
+
+  # App Runner deploy: pipeline calls update-service to roll a new image SHA
+  # onto each environment, and describe-service to poll deployment status.
+  statement {
+    sid    = "AppRunnerDeploy"
+    effect = "Allow"
+    actions = [
+      "apprunner:UpdateService",
+      "apprunner:DescribeService",
+      "apprunner:StartDeployment",
+    ]
+    resources = [for s in aws_apprunner_service.app : s.arn]
+  }
+
+  # update-service includes the source_configuration's access_role_arn, which
+  # AWS treats as a PassRole. Scoped to the App Runner service principal so
+  # this can't be abused to hand the role to anything else.
+  statement {
+    sid       = "AppRunnerPassECRRole"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = [aws_iam_role.apprunner_ecr_access.arn]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["build.apprunner.amazonaws.com"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "publish" {
