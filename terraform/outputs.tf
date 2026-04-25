@@ -32,3 +32,28 @@ output "oidc_provider_arn" {
   description = "ARN of the CircleCI OIDC provider in this account."
   value       = aws_iam_openid_connect_provider.circleci.arn
 }
+
+output "apprunner_service_dev_arn" {
+  description = "ARN of the dev App Runner service. Set as APPRUNNER_SERVICE_DEV_ARN in the aws-prod-publish context."
+  value       = aws_apprunner_service.app["dev"].arn
+}
+
+output "apprunner_service_prod_arn" {
+  description = "ARN of the prod App Runner service. Set as APPRUNNER_SERVICE_PROD_ARN in the aws-prod-publish context."
+  value       = aws_apprunner_service.app["prod"].arn
+}
+
+output "apprunner_service_dev_url" {
+  description = "Public URL of the dev environment."
+  value       = "https://${aws_apprunner_service.app["dev"].service_url}"
+}
+
+output "apprunner_service_prod_url" {
+  description = "Public URL of the prod environment."
+  value       = "https://${aws_apprunner_service.app["prod"].service_url}"
+}
+
+output "apprunner_ecr_access_role_arn" {
+  description = "Role App Runner assumes to pull from ECR. Set as APPRUNNER_ECR_ACCESS_ROLE_ARN in the aws-prod-publish context."
+  value       = aws_iam_role.apprunner_ecr_access.arn
+}
