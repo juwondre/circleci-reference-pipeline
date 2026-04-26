@@ -15,9 +15,9 @@ data "aws_iam_policy_document" "publish_trust" {
       values   = [var.circleci_org_id]
     }
 
-    # Sub claim encodes project + branch. Pins this role to one project on
-    # the default branch only, so a fork or feature-branch pipeline can't
-    # assume it even if the role ARN leaks.
+    # Sub claim encodes project + branch. Pins the role to one project on
+    # its default branch; a fork or feature branch can't assume it even
+    # if the role ARN leaks.
     condition {
       test     = "StringLike"
       variable = "${local.oidc_issuer}:sub"
@@ -62,9 +62,8 @@ data "aws_iam_policy_document" "publish_permissions" {
     resources = ["${aws_s3_bucket.releases.arn}/releases/*"]
   }
 
-  # App Runner deploy: pipeline calls update-service to roll a new image SHA
-  # onto each environment, then list-operations to poll the operation until
-  # it reaches a terminal state.
+  # App Runner deploy. update-service rolls the new image SHA onto each
+  # environment; list-operations is for polling until SUCCEEDED.
   statement {
     sid    = "AppRunnerDeploy"
     effect = "Allow"
@@ -77,14 +76,12 @@ data "aws_iam_policy_document" "publish_permissions" {
     resources = [for s in aws_apprunner_service.app : s.arn]
   }
 
-  # update-service includes the source_configuration's access_role_arn, which
-  # AWS treats as a PassRole on the caller. The resource is pinned to exactly
-  # one role ARN — the App Runner ECR access role — so the blast radius is
-  # already minimal. We tried scoping iam:PassedToService to apprunner /
-  # build.apprunner principals; both got denied (AWS evidently sets a value
-  # the docs don't enumerate clearly for this specific call), so dropping
-  # the condition. The role itself only trusts build.apprunner.amazonaws.com,
-  # so even with a passed reference, only App Runner can actually use it.
+  # update-service passes the source_configuration's access_role_arn, which
+  # AWS treats as iam:PassRole. Scoped to one role ARN (the App Runner ECR
+  # access role); that role's trust policy only allows
+  # build.apprunner.amazonaws.com to assume it, so the resource pin + trust
+  # policy is the boundary. Tried scoping iam:PassedToService to apprunner
+  # and build.apprunner; AWS denied both. Dropped the condition.
   statement {
     sid       = "AppRunnerPassECRRole"
     effect    = "Allow"
