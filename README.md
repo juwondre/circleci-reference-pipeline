@@ -13,7 +13,7 @@ Fork it, change [a few things](#adapting-this-for-your-project), and you've
 got the same shape on your project.
 
 - Repo: <https://github.com/juwondre/circleci-reference-pipeline>
-- Latest green build: <https://app.circleci.com/pipelines/circleci/HwwMVoew2JQ1sDzMvWGy8s/BLoTBkA3F8xnVJ6PLkdk9W/54/details>
+- Latest green build: <https://app.circleci.com/pipelines/circleci/HwwMVoew2JQ1sDzMvWGy8s/BLoTBkA3F8xnVJ6PLkdk9W/59/details>
 - Live deployed app:
   - dev — <https://mhsfumpeph.us-east-1.awsapprunner.com/healthz>
   - prod — <https://nphmbpqtkp.us-east-1.awsapprunner.com/healthz>
