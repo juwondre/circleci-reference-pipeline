@@ -76,8 +76,9 @@ data "aws_iam_policy_document" "publish_permissions" {
   }
 
   # update-service includes the source_configuration's access_role_arn, which
-  # AWS treats as a PassRole. Scoped to the App Runner service principal so
-  # this can't be abused to hand the role to anything else.
+  # AWS treats as a PassRole. Scoped to the App Runner service principals
+  # (both the parent and the build sub-service) so this can't be abused to
+  # hand the role to anything else.
   statement {
     sid       = "AppRunnerPassECRRole"
     effect    = "Allow"
@@ -86,7 +87,10 @@ data "aws_iam_policy_document" "publish_permissions" {
     condition {
       test     = "StringEquals"
       variable = "iam:PassedToService"
-      values   = ["build.apprunner.amazonaws.com"]
+      values = [
+        "apprunner.amazonaws.com",
+        "build.apprunner.amazonaws.com",
+      ]
     }
   }
 }
