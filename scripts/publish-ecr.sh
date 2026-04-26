@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Push the loaded image to ECR under its commit SHA. ECR is configured for
-# immutable tags, so each publish produces a unique, unambiguous artifact and
-# a re-run of a given build can't silently overwrite what's in prod.
+# Push the loaded image to ECR under its commit SHA. ECR is IMMUTABLE so a
+# rerun can't silently overwrite what's in prod.
 : "${AWS_ACCOUNT_ID:?}" "${AWS_REGION:?}" "${ECR_REPO:?}"
 
 local_image="${1:-app:${CIRCLE_SHA1}}"
