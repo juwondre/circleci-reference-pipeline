@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bundle the image tar plus a JSON manifest and drop them in S3 under the
-# commit SHA. Gives consumers a single deterministic location per release.
+# Bundle the image tar + a JSON manifest under the commit SHA. One known
+# location per release.
 : "${AWS_REGION:?}" "${RELEASE_BUCKET:?}"
 
 image_tar="${1:?usage: publish-s3.sh <image-tar>}"

@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Roll the just-published image SHA onto an App Runner service and block
-# until the deploy reaches a terminal state. Called by deploy-dev /
-# deploy-prod jobs. Required env (from the aws-prod-publish context):
-#   AWS_ACCOUNT_ID, AWS_REGION, ECR_REPO
-#   APPRUNNER_ECR_ACCESS_ROLE_ARN
+# Roll the just-published SHA onto an App Runner service and wait. Called
+# by deploy-dev and deploy-prod. Reads from the aws-prod-publish context:
+#   AWS_ACCOUNT_ID, AWS_REGION, ECR_REPO, APPRUNNER_ECR_ACCESS_ROLE_ARN
 #   APPRUNNER_SERVICE_DEV_ARN  (when invoked with "dev")
 #   APPRUNNER_SERVICE_PROD_ARN (when invoked with "prod")
 
@@ -21,11 +19,10 @@ esac
 
 new_image="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${CIRCLE_SHA1}"
 
-# update-service requires the full source_configuration block, including the
-# auth role and runtime env vars. Anything omitted gets reset to defaults.
-# Built with a heredoc to avoid a jq dependency (cimg/python doesn't ship it).
-# Safe because $new_image, $sha, $role come from AWS-controlled identifiers
-# that can't contain quotes/backslashes that would break JSON.
+# update-service wants the full source_configuration; anything you omit
+# gets reset to defaults. Heredoc avoids a jq dep (cimg/python doesn't
+# ship it). Safe to interpolate: the values are AWS-controlled identifiers
+# that won't contain quotes or backslashes.
 source_config=$(cat <<JSON
 {
   "AuthenticationConfiguration": { "AccessRoleArn": "$APPRUNNER_ECR_ACCESS_ROLE_ARN" },
@@ -52,10 +49,9 @@ op_id=$(aws apprunner update-service \
   --query 'OperationId' --output text)
 echo "  OperationId: $op_id"
 
-# Poll the operation until terminal. App Runner deploys typically take 2-4
-# minutes; we time out at 12 minutes (60 polls x 12s). Note we DON'T
-# suppress AWS CLI stderr — a permission/network error here used to mask
-# itself as PENDING and burn the entire timeout silently.
+# Poll until terminal. App Runner deploys take 2-4 minutes; 12-minute
+# timeout. Don't suppress AWS CLI stderr; a 403 here used to look like
+# PENDING and burn the whole timeout silently.
 echo "→ Waiting for deploy..."
 for i in $(seq 1 60); do
   op_status=$(aws apprunner list-operations --service-arn "$arn" \

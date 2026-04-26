@@ -1,12 +1,9 @@
-# Two App Runner services (dev + prod) host the Flask app from the ECR image.
-# The pipeline updates each service's image_identifier on deploy; lifecycle
-# ignore_changes on source_configuration keeps Terraform from fighting the
-# pipeline over what tag is currently running.
-#
-# Bootstrapped against an `:bootstrap` tag that must already exist in ECR
-# before `terraform apply` (one-time `aws ecr put-image` from any master SHA).
+# Dev + prod services for the Flask app. Pipeline owns the image SHA via
+# update-service; we ignore_changes on source_configuration so apply doesn't
+# revert the running version. Needs an `:bootstrap` tag in ECR before first
+# apply or the services land in CREATE_FAILED.
 
-# IAM role App Runner assumes to pull images from our private ECR repo.
+# IAM role App Runner assumes to pull from ECR.
 resource "aws_iam_role" "apprunner_ecr_access" {
   name = "${var.role_name}-apprunner-ecr"
 
@@ -44,8 +41,8 @@ resource "aws_apprunner_service" "app" {
       image_configuration {
         port = "8080"
         runtime_environment_variables = {
-          # SQLite in /tmp keeps cost flat (no RDS). Per-instance and lost on
-          # restart — fine for the demo. Production would point at RDS.
+          # SQLite in /tmp. Ephemeral on restart, fine for a demo;
+          # production would point DATABASE_URL at RDS.
           DATABASE_URL = "sqlite:////tmp/app.db"
           BUILD_SHA    = "bootstrap"
         }
@@ -69,9 +66,9 @@ resource "aws_apprunner_service" "app" {
     unhealthy_threshold = 3
   }
 
-  # The pipeline (deploy-dev / deploy-prod jobs) owns source_configuration
-  # after the first apply. Without ignore_changes, every `terraform apply`
-  # would try to roll the service back to :bootstrap.
+  # Pipeline (deploy-dev / deploy-prod) owns source_configuration after
+  # first apply. Without ignore_changes, every apply would roll the service
+  # back to :bootstrap.
   lifecycle {
     ignore_changes = [
       source_configuration,
