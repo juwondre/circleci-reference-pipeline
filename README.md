@@ -18,9 +18,20 @@ got the same shape on your project.
   - dev — <https://mhsfumpeph.us-east-1.awsapprunner.com/healthz>
   - prod — <https://nphmbpqtkp.us-east-1.awsapprunner.com/healthz>
 
-`/healthz` returns `{"build":"<commit-sha>","status":"ok"}` so you can
-see what's running. POST to `/items` then GET `/items` round-trips through
-SQLAlchemy + SQLite to prove the app actually works.
+`/healthz` returns the build SHA so you can see what's running; POST + GET
+on `/items` round-trips through SQLAlchemy + SQLite. Try it:
+
+```bash
+URL=https://mhsfumpeph.us-east-1.awsapprunner.com   # dev; swap mhsfumpeph for nphmbpqtkp for prod
+
+curl -sS "$URL/healthz"                             # → {"build":"<sha>","status":"ok"}
+curl -sS "$URL/readyz"                              # → {"status":"ready"} (pings the DB)
+
+curl -sS -XPOST -H 'content-type: application/json' \
+  -d '{"name":"hello"}' "$URL/items"                # → {"id":N,"name":"hello", ...}
+
+curl -sS "$URL/items"                               # → [{"id":1, ...}, ...]
+```
 
 ## How this maps to the brief
 
