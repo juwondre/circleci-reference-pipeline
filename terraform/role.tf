@@ -63,7 +63,8 @@ data "aws_iam_policy_document" "publish_permissions" {
   }
 
   # App Runner deploy: pipeline calls update-service to roll a new image SHA
-  # onto each environment, and describe-service to poll deployment status.
+  # onto each environment, then list-operations to poll the operation until
+  # it reaches a terminal state.
   statement {
     sid    = "AppRunnerDeploy"
     effect = "Allow"
@@ -71,27 +72,24 @@ data "aws_iam_policy_document" "publish_permissions" {
       "apprunner:UpdateService",
       "apprunner:DescribeService",
       "apprunner:StartDeployment",
+      "apprunner:ListOperations",
     ]
     resources = [for s in aws_apprunner_service.app : s.arn]
   }
 
   # update-service includes the source_configuration's access_role_arn, which
-  # AWS treats as a PassRole. Scoped to the App Runner service principals
-  # (both the parent and the build sub-service) so this can't be abused to
-  # hand the role to anything else.
+  # AWS treats as a PassRole on the caller. The resource is pinned to exactly
+  # one role ARN — the App Runner ECR access role — so the blast radius is
+  # already minimal. We tried scoping iam:PassedToService to apprunner /
+  # build.apprunner principals; both got denied (AWS evidently sets a value
+  # the docs don't enumerate clearly for this specific call), so dropping
+  # the condition. The role itself only trusts build.apprunner.amazonaws.com,
+  # so even with a passed reference, only App Runner can actually use it.
   statement {
     sid       = "AppRunnerPassECRRole"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
     resources = [aws_iam_role.apprunner_ecr_access.arn]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values = [
-        "apprunner.amazonaws.com",
-        "build.apprunner.amazonaws.com",
-      ]
-    }
   }
 }
 
