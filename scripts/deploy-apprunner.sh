@@ -53,12 +53,14 @@ op_id=$(aws apprunner update-service \
 echo "  OperationId: $op_id"
 
 # Poll the operation until terminal. App Runner deploys typically take 2-4
-# minutes; we time out at 12 minutes (60 polls x 12s).
+# minutes; we time out at 12 minutes (60 polls x 12s). Note we DON'T
+# suppress AWS CLI stderr — a permission/network error here used to mask
+# itself as PENDING and burn the entire timeout silently.
 echo "→ Waiting for deploy..."
 for i in $(seq 1 60); do
   op_status=$(aws apprunner list-operations --service-arn "$arn" \
     --query "OperationSummaryList[?Id=='$op_id'] | [0].Status" \
-    --output text 2>/dev/null || echo "PENDING")
+    --output text)
   case "$op_status" in
     SUCCEEDED)
       echo "✓ $env deploy SUCCEEDED (poll $i)"
