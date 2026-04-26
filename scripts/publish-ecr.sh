@@ -10,6 +10,18 @@ local_image="${1:-app:${CIRCLE_SHA1}}"
 registry="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 remote="${registry}/${ECR_REPO}"
 
+# Idempotency: if this SHA is already in ECR, skip the push. Otherwise a
+# pipeline rerun (or a CircleCI auto-retry on a transient post-push failure)
+# would hit `tag immutable, cannot be overwritten` and fail.
+if aws ecr describe-images \
+     --region "$AWS_REGION" \
+     --repository-name "$ECR_REPO" \
+     --image-ids "imageTag=${CIRCLE_SHA1}" \
+     >/dev/null 2>&1; then
+  echo "skip: ${remote}:${CIRCLE_SHA1} is already in ECR"
+  exit 0
+fi
+
 aws ecr get-login-password --region "$AWS_REGION" \
   | docker login --username AWS --password-stdin "$registry"
 
