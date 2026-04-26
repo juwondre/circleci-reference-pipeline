@@ -1,8 +1,8 @@
 version: 2.1
 
 # Continuation config triggered by .circleci/config.yml after path-filtering.
-# The `run-app-pipeline` parameter is true only when relevant files changed,
-# so doc-only PRs short-circuit to a single no-op job.
+# run-app-pipeline is true only when relevant files changed; doc-only PRs
+# short-circuit to a single noop job.
 
 orbs:
   aws-cli: circleci/aws-cli@5.4.1
@@ -16,10 +16,9 @@ executors:
   python:
     docker:
       - image: cimg/python:3.12
-  # Test-only credentials below: the Postgres sidecar is ephemeral, bound
-  # to the job's localhost namespace, and destroyed when the job ends. Do
-  # not reuse this pattern for production — production DB creds belong in a
-  # secrets manager, injected via a branch-restricted context.
+  # Test-only credentials. The Postgres sidecar is ephemeral, bound to the
+  # job's localhost namespace, gone when the job ends. For production, put
+  # DB creds in a secrets manager and inject via a branch-restricted context.
   python-with-postgres:
     docker:
       - image: cimg/python:3.12
@@ -138,8 +137,8 @@ jobs:
           command: ./scripts/integration-test.sh "app:${CIRCLE_SHA1}"
 
   security-scan:
-    # Runs in parallel with container-integration-test so the security gate
-    # doesn't extend pipeline wall time. Both must pass before any publish.
+    # Parallel with container-integration-test so the gate doesn't add
+    # wall time. Both must pass before any publish.
     executor: machine
     steps:
       - checkout
@@ -153,7 +152,7 @@ jobs:
           command: |
             set -euo pipefail
             python3 -m pip install --quiet --user bandit==1.7.9
-            # Official install script — survives Trivy's asset-naming changes
+            # Official install script — handles Trivy's per-version asset names
             curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
               | sudo sh -s -- -b /usr/local/bin v0.70.0
       - run:
@@ -163,8 +162,8 @@ jobs:
             mkdir -p security-results
             # -ll = only flag MEDIUM+; raise to -lll for HIGH-only
             "$HOME/.local/bin/bandit" -r app -ll | tee security-results/bandit.txt
-            # Guard against bandit silently skipping all files (e.g. parser
-            # incompat on a future Python). If LOC scanned is 0, fail loud.
+            # Bandit silently skips files it can't parse (e.g. on a future
+            # Python it doesn't grok). If LOC scanned is 0, fail loud.
             total_loc=$(awk '/Total lines of code:/ {print $NF; exit}' security-results/bandit.txt)
             if [ "${total_loc:-0}" = "0" ]; then
               echo "ERROR: bandit scanned 0 lines of code in app/ — likely a parser failure" >&2
@@ -174,11 +173,10 @@ jobs:
           name: Trivy (container image CVE scan)
           command: |
             mkdir -p security-results
-            # Fail the build on any FIXABLE HIGH or CRITICAL CVE in the image.
-            # --ignore-unfixed skips CVEs with no upstream fix yet — gating on
-            # those would block every build for things we can't action. Fixed
-            # CVEs still fail loudly, and the full unfiltered list (including
-            # unfixed) is also captured below for visibility.
+            # Gate on fixable HIGH/CRITICAL only. --ignore-unfixed skips
+            # CVEs with no upstream fix; gating on those would block every
+            # build for things we can't action. Full unfiltered list goes
+            # to a separate artifact below for visibility.
             trivy image --no-progress \
               --severity HIGH,CRITICAL \
               --ignore-unfixed \
@@ -258,9 +256,8 @@ jobs:
           command: circleci run release update s3-publish --status=FAILED
 
   deploy-apprunner:
-    # Rolls the published image SHA onto an App Runner service (dev or prod)
-    # via aws apprunner update-service, then polls the operation until it
-    # reaches a terminal state. Caller supplies <env-name> as a parameter.
+    # Rolls the published SHA onto a service (dev or prod) and polls until
+    # the operation reaches a terminal state.
     parameters:
       env:
         type: enum
@@ -311,16 +308,16 @@ workflows:
       - container-integration-test:
           requires: [build-image]
 
-      # SAST + container CVE scan runs in parallel with the integration test
-      # to keep wall time flat. Both must pass before any publish.
+      # SAST + container CVE scan, parallel with the integration test so
+      # the gate doesn't add wall time. Both must pass before any publish.
       - security-scan:
           requires: [build-image]
 
-      # Publish jobs only fire on main, and only after the integration test
-      # AND the security scan pass. They consume a context whose AWS_ROLE_ARN
-      # is restricted by CircleCI to main, and whose IAM trust policy is
-      # pinned to this project + ref via the OIDC sub claim. So credentials
-      # are unreachable from forks, feature branches, or any non-approved build.
+      # Publish jobs fire on master only, after the integration test AND
+      # security scan pass. The context they pull from is branch-restricted
+      # to master in CircleCI; the IAM trust policy is also pinned to this
+      # project + master via the OIDC sub claim. Credentials unreachable
+      # from forks, feature branches, or any non-approved build.
       - publish-ecr:
           context: aws-prod-publish
           requires: [container-integration-test, security-scan]
@@ -335,8 +332,8 @@ workflows:
             branches:
               only: master
 
-      # Deploy the just-published image to App Runner. Dev runs automatically
-      # right after publish-ecr; prod waits on a manual approval gate.
+      # Deploy the new image to App Runner. Dev runs auto after publish-ecr;
+      # prod waits on a manual approval gate.
       - deploy-apprunner:
           name: deploy-dev
           env: dev
